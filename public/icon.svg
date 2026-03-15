@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- Warm sand background matching app theme -->
+  <rect width="512" height="512" rx="108" fill="#e8e2d8"/>
+
+  <!-- Viewfinder brackets — top left -->
+  <path d="M120 200 L120 152 Q120 120 152 120 L200 120"
+        stroke="#b07a3b" stroke-width="12" fill="none" stroke-linecap="round"/>
+
+  <!-- Viewfinder brackets — top right -->
+  <path d="M312 120 L360 120 Q392 120 392 152 L392 200"
+        stroke="#b07a3b" stroke-width="12" fill="none" stroke-linecap="round"/>
+
+  <!-- Viewfinder brackets — bottom left -->
+  <path d="M120 312 L120 360 Q120 392 152 392 L200 392"
+        stroke="#b07a3b" stroke-width="12" fill="none" stroke-linecap="round"/>
+
+  <!-- Viewfinder brackets — bottom right -->
+  <path d="M312 392 L360 392 Q392 392 392 360 L392 312"
+        stroke="#b07a3b" stroke-width="12" fill="none" stroke-linecap="round"/>
+
+  <!-- The dot -->
+  <circle cx="256" cy="256" r="28" fill="#b07a3b"/>
+
+  <!-- Subtle outer ring -->
+  <circle cx="256" cy="256" r="56" fill="none" stroke="#b07a3b" stroke-width="4" opacity="0.2"/>
+</svg>

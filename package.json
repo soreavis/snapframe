@@ -1,0 +1,31 @@
+{
+  "name": "snapframe",
+  "version": "1.0.0",
+  "description": "Capture any webpage in multiple viewports with one click. Built with Playwright.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "npx playwright test"
+  },
+  "keywords": [
+    "screenshot",
+    "playwright",
+    "capture",
+    "viewport",
+    "batch",
+    "webp",
+    "pdf"
+  ],
+  "author": "Julian Soreavis",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.3.1",
+    "playwright": "^1.58.2",
+    "sharp": "^0.34.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2"
+  }
+}

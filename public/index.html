@@ -1,0 +1,1562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>.snapframe — Capture any webpage in multiple viewports</title>
+  <meta name="description" content="Screenshot tool powered by Playwright. Multi-viewport batch capture, social media presets, PDF export, cookie cleanup.">
+  <meta property="og:title" content=".snapframe">
+  <meta property="og:description" content="Capture any webpage in multiple viewports with one click.">
+  <meta property="og:image" content="/og-image.png">
+  <link rel="icon" type="image/svg+xml" href="/icon.svg">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f0ebe3;
+      --surface: #faf6f0;
+      --input: #e8e2d8;
+      --border: #d6cfc4;
+      --text: #2c2820;
+      --text-dim: #8a8278;
+      --accent: #b07a3b;
+      --accent-glow: rgba(176, 122, 59, 0.1);
+      --danger: #c0392b;
+      --r: 8px;
+    }
+
+    body {
+      font-family: "Inter", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .app { max-width: 900px; margin: 0 auto; padding: 48px 20px; }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 36px;
+    }
+
+    .logo span {
+      font-family: "Space Mono", monospace;
+      font-size: 1.25rem; font-weight: 700; letter-spacing: -0.5px;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+
+    .panel-collapsible {
+      overflow: hidden;
+      max-height: 600px;
+      transition: max-height 0.4s ease, opacity 0.3s ease, margin 0.3s ease;
+      opacity: 1;
+    }
+    .panel-collapsible.collapsed {
+      max-height: 0;
+      opacity: 0;
+      margin-top: 0;
+    }
+
+    .url-bar { display: flex; gap: 10px; margin-bottom: 0; }
+    .url-bar.expanded { margin-bottom: 16px; }
+
+    .expand-btn {
+      background: none; border: none; color: var(--text-dim); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      width: 36px; height: 44px; border-radius: var(--r); transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .expand-btn:hover { color: var(--text); background: var(--input); }
+    .expand-btn .material-icons-round {
+      font-size: 20px; transition: transform 0.3s ease;
+    }
+    .expand-btn.rotated .material-icons-round { transform: rotate(180deg); }
+
+    .url-bar input {
+      flex: 1; padding: 0 14px; height: 44px;
+      background: var(--input); border: 1px solid var(--border); border-radius: var(--r);
+      color: var(--text); font-family: inherit; font-size: 0.875rem; outline: none;
+      transition: border-color 0.15s;
+    }
+    .url-bar input:focus { border-color: var(--accent); }
+    .url-bar input::placeholder { color: var(--text-dim); }
+
+    .capture-btn {
+      height: 44px; padding: 0 24px; background: var(--accent); color: #fff; border: none;
+      border-radius: var(--r); font-family: inherit; font-size: 0.875rem; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; gap: 8px; transition: opacity 0.15s;
+    }
+    .capture-btn:hover { opacity: 0.85; }
+    .capture-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .capture-btn .material-icons-round { font-size: 18px; }
+
+    .capture-wrap { position: relative; }
+    .capture-wrap .disabled-tip {
+      display: none; position: absolute; bottom: calc(100% + 8px); right: 0;
+      background: var(--text); color: var(--bg); font-size: 0.75rem; font-weight: 400;
+      padding: 6px 12px; border-radius: 8px; white-space: nowrap;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+    .capture-wrap .disabled-tip::after {
+      content: ""; position: absolute; top: 100%; right: 20px;
+      border: 5px solid transparent; border-top-color: var(--text);
+    }
+    .capture-wrap:hover .capture-btn:disabled ~ .disabled-tip { display: block; }
+
+    /* Presets - Apple HIG style */
+    .presets-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .presets-actions { display: flex; gap: 4px; align-items: center; }
+    .presets-action {
+      background: none; border: none; color: var(--accent); font-family: inherit;
+      font-size: 0.75rem; font-weight: 500; cursor: pointer; padding: 4px 10px;
+      border-radius: 6px; transition: background 0.15s;
+    }
+    .presets-action:hover:not(:disabled) { background: var(--accent-glow); }
+    .presets-action:disabled { color: var(--border); cursor: default; }
+
+    /* Segmented control */
+    .segmented {
+      display: inline-flex; background: var(--input); border-radius: 8px; padding: 2px;
+    }
+    .seg-btn {
+      padding: 6px 16px; background: none; border: none; border-radius: 6px;
+      color: var(--text-dim); font-family: inherit; font-size: 0.8rem; font-weight: 500;
+      cursor: pointer; display: flex; align-items: center; gap: 6px;
+      transition: all 0.2s ease; position: relative;
+    }
+    .seg-btn:hover { color: var(--text); }
+    .seg-btn.active {
+      background: var(--surface); color: var(--text);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    }
+    .seg-btn .material-icons-round { font-size: 16px; }
+    .seg-btn .seg-count {
+      font-size: 0.65rem; background: var(--accent); color: #fff;
+      min-width: 16px; height: 16px; border-radius: 8px; display: inline-flex;
+      align-items: center; justify-content: center; padding: 0 4px;
+      font-weight: 600; opacity: 0; transition: opacity 0.2s;
+    }
+    .seg-btn .seg-count.visible { opacity: 1; }
+
+    .preset-group {
+      display: flex; gap: 8px; flex-wrap: wrap;
+      max-height: 0; overflow: hidden; opacity: 0;
+      transition: max-height 0.3s ease, opacity 0.2s ease, margin 0.3s ease;
+      margin-bottom: 0;
+    }
+    .preset-group.active {
+      max-height: 200px; opacity: 1; margin-bottom: 0;
+    }
+
+    .presets { margin-bottom: 16px; margin-top: 4px; }
+
+    /* Chip-style presets */
+    .preset {
+      height: 34px; padding: 0 14px; background: var(--surface);
+      border: 1.5px solid transparent; border-radius: 10px; color: var(--text);
+      font-family: inherit; font-size: 0.8rem; font-weight: 500; cursor: pointer;
+      display: flex; align-items: center; gap: 6px;
+      transition: all 0.2s ease;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+    .preset .material-icons-round { font-size: 16px; color: var(--text-dim); transition: color 0.2s; }
+    .preset:hover {
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+    .preset.active {
+      border-color: var(--accent); background: var(--accent-glow); color: var(--accent);
+    }
+    .preset.active .material-icons-round { color: var(--accent); }
+    .preset-dim {
+      font-size: 0.65rem; color: var(--text-dim); font-weight: 400;
+      margin-left: 2px; transition: color 0.2s;
+    }
+    .preset.active .preset-dim { color: var(--accent); opacity: 0.7; }
+
+    /* Options — Apple HIG inline bar */
+    .opts {
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    }
+
+    .opt {
+      display: flex; align-items: center; gap: 6px; position: relative;
+    }
+
+    .opt-label {
+      font-size: 0.75rem; font-weight: 500; color: var(--text-dim); white-space: nowrap;
+    }
+
+
+    .opt select, .opt input[type="number"] {
+      height: 32px; padding: 0 8px; background: var(--input);
+      border: 1px solid var(--border); border-radius: 8px; color: var(--text);
+      font-family: inherit; font-size: 0.8rem; outline: none; -webkit-appearance: none;
+      transition: border-color 0.15s;
+    }
+    .opt select { width: 80px; }
+    .opt input[type="number"] { width: 64px; }
+
+    .select-wrap { position: relative; }
+    .select-wrap select { padding-right: 26px; cursor: pointer; }
+    .select-wrap .material-icons-round {
+      position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+      font-size: 14px; color: var(--text-dim); pointer-events: none;
+    }
+
+    .opt select:focus, .opt input[type="number"]:focus { border-color: var(--accent); }
+
+    .opts-divider {
+      width: 1px; height: 24px; background: var(--border); flex-shrink: 0;
+    }
+
+    /* Toggles — Apple-style inline */
+    .toggle {
+      display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .toggle input { display: none; }
+    .toggle-track {
+      width: 42px; height: 24px; background: var(--border); border-radius: 12px;
+      position: relative; transition: background 0.25s ease; flex-shrink: 0;
+    }
+    .toggle-track::after {
+      content: ""; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px;
+      background: #fff; border-radius: 50%; transition: transform 0.25s ease;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
+    .toggle input:checked + .toggle-track { background: var(--accent); }
+    .toggle input:checked + .toggle-track::after { transform: translateX(18px); }
+    .toggle-label { font-size: 0.8rem; color: var(--text); font-weight: 500; }
+
+    /* Progress */
+    .progress {
+      padding: 24px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; margin-bottom: 24px; overflow: hidden;
+      max-height: 0; opacity: 0; transform: translateY(-12px);
+      transition: max-height 0.4s ease, opacity 0.3s ease, transform 0.3s ease,
+                  margin 0.4s ease, padding 0.4s ease;
+      padding-top: 0; padding-bottom: 0; margin-bottom: 0;
+    }
+    .progress.slide-in {
+      max-height: 500px; opacity: 1; transform: translateY(0);
+      padding: 24px; margin-bottom: 24px;
+    }
+    .progress.slide-out {
+      max-height: 0; opacity: 0; transform: translateY(-12px);
+      padding-top: 0; padding-bottom: 0; margin-bottom: 0;
+    }
+
+    .progress-header {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;
+    }
+    .progress-pct {
+      font-size: 1.8rem; font-weight: 600; color: var(--text);
+      font-variant-numeric: tabular-nums; letter-spacing: -1px;
+    }
+    .progress-stats { display: flex; gap: 16px; align-items: center; }
+    .progress-stat { text-align: right; font-variant-numeric: tabular-nums; }
+    .progress-stat-label {
+      font-size: 0.6rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .progress-stat-value { font-size: 0.85rem; color: var(--text); font-weight: 500; display: flex; align-items: center; gap: 4px; }
+
+    .active-indicator {
+      color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums;
+      animation: activePulse 2s ease-in-out infinite;
+    }
+    .active-indicator.idle { animation: none; opacity: 0.3; }
+    .active-arrow { color: var(--text-dim); font-size: 0.75rem; }
+
+    @keyframes activePulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .progress-track {
+      width: 100%; height: 6px; background: var(--border);
+      border-radius: 3px; overflow: hidden; margin-bottom: 14px;
+    }
+    .progress-fill {
+      height: 100%; width: 0%; background: var(--accent);
+      border-radius: 3px; transition: width 0.3s ease;
+    }
+
+    .progress-step {
+      font-size: 0.8rem; color: var(--text-dim); margin-bottom: 10px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .progress-step .material-icons-round { font-size: 14px; animation: pulse 1s ease infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+
+    .progress-quote {
+      font-family: "Space Mono", monospace;
+      font-size: 0.8rem; color: var(--accent); font-weight: 700;
+      margin-bottom: 14px; min-height: 20px; text-align: center;
+      opacity: 0; transform: translateY(8px) scale(0.96);
+      filter: blur(4px);
+      transition: opacity 1.2s ease, transform 1.2s ease, filter 1.2s ease;
+    }
+    .progress-quote.visible {
+      opacity: 1; transform: translateY(0) scale(1);
+      filter: blur(0);
+    }
+    .progress-quote.fade-out {
+      opacity: 0; transform: translateY(-8px) scale(0.96);
+      filter: blur(4px);
+      transition: opacity 1.5s ease, transform 1.5s ease, filter 1.5s ease;
+    }
+
+    .progress-thumbs {
+      display: flex; gap: 8px; margin-bottom: 12px; overflow-x: auto;
+      scrollbar-width: none; -ms-overflow-style: none;
+      min-height: 0; transition: min-height 0.3s ease;
+    }
+    .progress-thumbs::-webkit-scrollbar { display: none; }
+    .progress-thumbs.has-items { min-height: 56px; }
+
+    .progress-thumb {
+      flex-shrink: 0; width: 80px; height: 48px; border-radius: 6px;
+      overflow: hidden; border: 1px solid var(--border);
+      opacity: 0; transform: scale(0.8);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+      position: relative;
+    }
+    .progress-thumb.visible { opacity: 1; transform: scale(1); }
+    .progress-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .progress-thumb-label {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: rgba(0,0,0,0.6); color: #fff;
+      font-size: 0.55rem; padding: 2px 4px; text-align: center;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .progress-log {
+      max-height: 120px; overflow-y: auto; font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 0.7rem; color: var(--text-dim); background: var(--input);
+      border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; line-height: 1.6;
+    }
+    .progress-log .log-line { display: flex; gap: 8px; }
+    .log-time { color: var(--accent); flex-shrink: 0; }
+    .log-msg { color: var(--text-dim); }
+
+    /* Modal — Apple HIG alert style */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,0.3); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+
+    .modal {
+      background: var(--surface); border-radius: 14px; width: 320px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2), 0 0 0 1px rgba(0,0,0,0.05);
+      overflow: hidden; animation: modalIn 0.2s ease;
+    }
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .modal-body { padding: 24px 24px 20px; text-align: center; }
+    .modal-title {
+      font-size: 1rem; font-weight: 600; color: var(--text);
+      margin-bottom: 6px;
+    }
+    .modal-msg {
+      font-size: 0.85rem; color: var(--text-dim); line-height: 1.5;
+    }
+
+    .modal-suppress {
+      display: flex; align-items: center; gap: 6px;
+      padding: 0 24px 14px; cursor: pointer; user-select: none;
+      font-size: 0.75rem; color: var(--text-dim);
+    }
+    .modal-suppress input {
+      width: 14px; height: 14px; accent-color: var(--accent);
+    }
+
+    .modal-actions {
+      display: flex; border-top: 1px solid var(--border);
+    }
+    .modal-btn {
+      flex: 1; padding: 14px; background: none; border: none;
+      font-family: inherit; font-size: 0.95rem; cursor: pointer;
+      transition: background 0.15s; color: var(--accent);
+    }
+    .modal-btn:first-child {
+      border-right: 1px solid var(--border); color: var(--text-dim);
+    }
+    .modal-btn:hover { background: var(--input); }
+    .modal-btn--primary { font-weight: 600; }
+
+    /* Error */
+    .error {
+      display: none; align-items: center; gap: 10px; padding: 12px 16px;
+      background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.15);
+      border-radius: var(--r); color: var(--danger); font-size: 0.85rem; margin-bottom: 16px;
+    }
+    .error.active { display: flex; }
+    .error .material-icons-round { font-size: 18px; }
+
+    /* Result with tabs */
+    .result {
+      display: none;
+      position: relative; left: 50%; width: 100vw;
+      transform: translateX(-50%);
+    }
+    .result.active {
+      display: block;
+    }
+
+    .result-header {
+      padding: 0 20px;
+      position: sticky; top: 0; z-index: 90;
+      background: var(--bg);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    .result-header-top {
+      display: flex; align-items: center;
+      position: relative;
+    }
+
+    .result-meta-bar {
+      display: flex; gap: 8px; flex-wrap: wrap; padding: 8px 0;
+      border-top: 1px solid var(--border);
+    }
+
+    .tabs-wrap {
+      flex: 1; position: relative; overflow: hidden;
+      mask-image: linear-gradient(to right, transparent 0px, black 20px, black calc(100% - 30px), transparent 100%);
+      -webkit-mask-image: linear-gradient(to right, transparent 0px, black 20px, black calc(100% - 30px), transparent 100%);
+    }
+
+    .tabs {
+      display: flex; gap: 0; overflow-x: auto; padding: 0 8px;
+      scrollbar-width: none; -ms-overflow-style: none;
+      scroll-behavior: smooth;
+    }
+    .tabs::-webkit-scrollbar { display: none; }
+
+    .tabs-nav {
+      display: flex; align-items: center; flex-shrink: 0;
+    }
+    .tabs-nav button {
+      background: none; border: none; cursor: pointer; color: var(--text-dim);
+      padding: 8px 4px; display: flex; align-items: center;
+      transition: color 0.15s;
+    }
+    .tabs-nav button:hover { color: var(--text); }
+    .tabs-nav .material-icons-round { font-size: 18px; }
+
+    .tab {
+      padding: 10px 16px; background: none; border: none; border-bottom: 2px solid transparent;
+      color: var(--text-dim); font-family: inherit; font-size: 0.8rem; font-weight: 500;
+      cursor: pointer; white-space: nowrap; transition: all 0.15s;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    .result-actions { display: flex; gap: 6px; padding: 8px 0; flex-shrink: 0; }
+
+    .icon-btn {
+      width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+      background: var(--input); border: 1px solid var(--border); border-radius: var(--r);
+      color: var(--text-dim); cursor: pointer; transition: all 0.15s;
+    }
+    .icon-btn:hover { border-color: var(--accent); color: var(--text); }
+    .icon-btn .material-icons-round { font-size: 18px; }
+    .icon-btn.has-label { width: auto; padding: 0 12px; gap: 5px; }
+    .btn-label { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.3px; }
+
+    .icon-btn.loading {
+      position: relative; pointer-events: none; opacity: 0.6;
+    }
+    .icon-btn.loading::after {
+      content: ""; position: absolute; inset: 0; margin: auto;
+      width: 16px; height: 16px; border: 2px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    .icon-btn.loading .material-icons-round,
+    .icon-btn.loading .btn-label { visibility: hidden; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .result-footer {
+      display: none; justify-content: center; padding: 12px 20px;
+      border-top: 1px solid var(--border); background: var(--surface);
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+      box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+    }
+    .result-footer.active { display: flex; }
+
+    .tab-panels { position: relative; }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .panel-bar { display: none; }
+
+    .meta { display: flex; gap: 8px; flex-wrap: wrap; }
+    .meta-chip {
+      font-size: 0.7rem; font-weight: 500; color: var(--text-dim);
+      background: var(--input); padding: 4px 10px; border-radius: 4px;
+    }
+
+    .preview {
+      background: var(--input); border-top: 1px solid var(--border);
+      padding: 0 0 60px 0; overflow: auto;
+    }
+    .preview img { display: block; width: 100%; height: auto; }
+
+    @media (max-width: 800px) {
+      .opts { flex-wrap: wrap; }
+    }
+    @media (max-width: 480px) {
+      .url-bar { flex-direction: column; }
+      .capture-btn { width: 100%; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="logo" onclick="resetApp()" style="cursor:pointer;" title="Reset">
+      <img src="/icon.svg" alt=".snapframe" style="width:36px;height:36px;border-radius:8px;">
+      <span>.snapframe</span>
+    </div>
+
+    <div class="panel">
+      <div class="url-bar expanded" id="urlBar">
+        <input type="url" id="urlInput" placeholder="Enter URL..." value="https://playwright.dev">
+        <button class="expand-btn" onclick="visitUrl()" title="Visit page">
+          <span class="material-icons-round">open_in_new</span>
+        </button>
+        <button class="expand-btn" onclick="feelingLucky()" title="I'm feeling lucky">
+          <span class="material-icons-round">sentiment_very_satisfied</span>
+        </button>
+        <div class="capture-wrap">
+          <button class="capture-btn" id="captureBtn" onclick="capture()">
+            <span class="material-icons-round">photo_camera</span>
+            Capture
+          </button>
+          <div class="disabled-tip">Select at least one preset to capture</div>
+        </div>
+        <button class="expand-btn rotated" id="expandBtn" onclick="togglePanel()" title="Toggle options">
+          <span class="material-icons-round">expand_more</span>
+        </button>
+      </div>
+
+      <div class="panel-collapsible" id="panelBody">
+
+      <div class="presets-header">
+        <div class="segmented">
+          <button class="seg-btn active" onclick="switchCategory('devices', this)">
+            <span class="material-icons-round">devices</span> Devices
+            <span class="seg-count" id="countDevices">1</span>
+          </button>
+          <button class="seg-btn" onclick="switchCategory('social', this)">
+            <span class="material-icons-round">share</span> Social
+            <span class="seg-count" id="countSocial">0</span>
+          </button>
+        </div>
+        <div class="presets-actions">
+          <button class="presets-action" id="btnSelectAll" onclick="selectAllPresets()">Select all</button>
+          <button class="presets-action" id="btnClear" onclick="clearPresets()">Clear</button>
+          <button class="presets-action" id="btnReset" onclick="resetPresets()">Reset</button>
+        </div>
+      </div>
+
+      <div class="presets">
+        <div class="preset-group active" data-cat="devices">
+          <button class="preset active" data-w="2560" data-h="1440" data-name="Retina" onclick="togglePreset(this)">
+            <span class="material-icons-round">desktop_mac</span> Retina
+            <span class="preset-dim">2560x1440</span>
+          </button>
+          <button class="preset" data-w="1280" data-h="720" data-name="Desktop" onclick="togglePreset(this)">
+            <span class="material-icons-round">monitor</span> Desktop
+            <span class="preset-dim">1280x720</span>
+          </button>
+          <button class="preset" data-w="1920" data-h="1080" data-name="Full HD" onclick="togglePreset(this)">
+            <span class="material-icons-round">tv</span> Full HD
+            <span class="preset-dim">1920x1080</span>
+          </button>
+          <button class="preset" data-w="768" data-h="1024" data-name="Tablet" onclick="togglePreset(this)">
+            <span class="material-icons-round">tablet_mac</span> Tablet
+            <span class="preset-dim">768x1024</span>
+          </button>
+          <button class="preset" data-w="375" data-h="812" data-name="iPhone" onclick="togglePreset(this)">
+            <span class="material-icons-round">phone_iphone</span> iPhone
+            <span class="preset-dim">375x812</span>
+          </button>
+          <button class="preset" data-w="390" data-h="844" data-name="iPhone 14" onclick="togglePreset(this)">
+            <span class="material-icons-round">smartphone</span> iPhone 14
+            <span class="preset-dim">390x844</span>
+          </button>
+          <button class="preset" data-w="360" data-h="800" data-name="Android" onclick="togglePreset(this)">
+            <span class="material-icons-round">phone_android</span> Android
+            <span class="preset-dim">360x800</span>
+          </button>
+        </div>
+
+        <div class="preset-group" data-cat="social">
+          <button class="preset" data-w="2560" data-h="1440" data-name="YT Banner" data-crop="true" onclick="togglePreset(this)">
+            <span class="material-icons-round">smart_display</span> YT Banner
+            <span class="preset-dim">2560x1440</span>
+          </button>
+          <button class="preset" data-w="1280" data-h="720" data-name="YT Thumb" data-crop="true" onclick="togglePreset(this)">
+            <span class="material-icons-round">smart_display</span> YT Thumb
+            <span class="preset-dim">1280x720</span>
+          </button>
+          <button class="preset" data-w="1200" data-h="627" data-name="LinkedIn Post" data-crop="true" onclick="togglePreset(this)">
+            <span class="material-icons-round">work</span> LinkedIn Post
+            <span class="preset-dim">1200x627</span>
+          </button>
+          <button class="preset" data-w="1584" data-h="396" data-name="LinkedIn Cover" data-crop="true" onclick="togglePreset(this)">
+            <span class="material-icons-round">work</span> LinkedIn Cover
+            <span class="preset-dim">1584x396</span>
+          </button>
+          <button class="preset" data-w="1600" data-h="900" data-name="X Post" data-crop="true" onclick="togglePreset(this)">
+            <span class="material-icons-round">tag</span> X Post
+            <span class="preset-dim">1600x900</span>
+          </button>
+          <button class="preset" data-w="1500" data-h="500" data-name="X Header" data-crop="true" onclick="togglePreset(this)">
+            <span class="material-icons-round">tag</span> X Header
+            <span class="preset-dim">1500x500</span>
+          </button>
+          <button class="preset" data-w="820" data-h="312" data-name="FB Cover" data-crop="true" onclick="togglePreset(this)">
+            <span class="material-icons-round">facebook</span> FB Cover
+            <span class="preset-dim">820x312</span>
+          </button>
+          <button class="preset" data-w="1200" data-h="630" data-name="FB Post" data-crop="true" onclick="togglePreset(this)">
+            <span class="material-icons-round">facebook</span> FB Post
+            <span class="preset-dim">1200x630</span>
+          </button>
+          <button class="preset" data-w="1080" data-h="1080" data-name="IG Post" data-crop="true" onclick="togglePreset(this)">
+            <span class="material-icons-round">photo_camera</span> IG Post
+            <span class="preset-dim">1080x1080</span>
+          </button>
+          <button class="preset" data-w="1080" data-h="1920" data-name="IG Story" data-crop="true" onclick="togglePreset(this)">
+            <span class="material-icons-round">photo_camera</span> IG Story
+            <span class="preset-dim">1080x1920</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="opts">
+        <div class="opt" title="Limit capture width (None = no limit)">
+          <span class="opt-label">Max W</span>
+          <div class="select-wrap">
+            <select id="maxWidth">
+              <option value="0">None</option>
+              <option value="960">960</option>
+              <option value="1200">1200</option>
+              <option value="1440" selected>1440</option>
+              <option value="1600">1600</option>
+              <option value="1700">1700</option>
+              <option value="1920">1920</option>
+            </select>
+            <span class="material-icons-round">expand_more</span>
+          </div>
+        </div>
+        <div class="opt" title="Device pixel ratio (2x = Retina)">
+          <span class="opt-label">Scale</span>
+          <div class="select-wrap">
+            <select id="scale">
+              <option value="1">1x</option>
+              <option value="2" selected>2x</option>
+              <option value="3">3x</option>
+            </select>
+            <span class="material-icons-round">expand_more</span>
+          </div>
+        </div>
+        <div class="opt" title="Wait before capture, useful for animations">
+          <span class="opt-label">Delay</span>
+          <div class="select-wrap">
+            <select id="delay">
+              <option value="0" selected>None</option>
+              <option value="500">0.5s</option>
+              <option value="1000">1s</option>
+              <option value="2000">2s</option>
+              <option value="3000">3s</option>
+              <option value="5000">5s</option>
+            </select>
+            <span class="material-icons-round">expand_more</span>
+          </div>
+        </div>
+        <div class="opts-divider"></div>
+        <label class="toggle" title="Scroll and capture the entire page, not just the visible viewport">
+          <input type="checkbox" id="fullPage" checked>
+          <span class="toggle-track"></span>
+          <span class="toggle-label">Full&nbsp;page</span>
+        </label>
+        <label class="toggle" title="Auto-dismiss cookie banners, consent popups, and floating widgets">
+          <input type="checkbox" id="cleanMode" checked>
+          <span class="toggle-track"></span>
+          <span class="toggle-label">Clean</span>
+        </label>
+        <label class="toggle" title="Force-show elements hidden by scroll animations (Framer Motion, GSAP, AOS)">
+          <input type="checkbox" id="revealMode">
+          <span class="toggle-track"></span>
+          <span class="toggle-label">Reveal</span>
+        </label>
+      </div>
+
+      </div><!-- end panel-collapsible -->
+    </div>
+
+    <div class="error" id="errorMsg">
+      <span class="material-icons-round">error_outline</span>
+      <span id="errorText"></span>
+    </div>
+
+    <div class="progress" id="progress">
+      <div class="progress-quote" id="progressQuote"></div>
+      <div class="progress-header">
+        <span class="progress-pct" id="progressPct">0%</span>
+        <div class="progress-stats">
+          <div class="progress-stat">
+            <div class="progress-stat-label">Captures</div>
+            <div class="progress-stat-value">
+              <span class="active-indicator" id="progressActive">0</span>
+              <span class="active-arrow">›</span>
+              <span id="progressCount">0/0</span>
+            </div>
+          </div>
+          <div class="progress-stat">
+            <div class="progress-stat-label">Elapsed</div>
+            <div class="progress-stat-value" id="progressElapsed">0.0s</div>
+          </div>
+          <div class="progress-stat">
+            <div class="progress-stat-label">Remaining</div>
+            <div class="progress-stat-value" id="progressEta">--</div>
+          </div>
+        </div>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <div class="progress-step">
+        <span class="material-icons-round">pending</span>
+        <span id="progressStepText">Initializing...</span>
+      </div>
+      <div class="progress-thumbs" id="progressThumbs"></div>
+      <div class="progress-log" id="progressLog"></div>
+    </div>
+
+    <div class="result" id="result">
+      <div class="result-header">
+        <div class="result-header-top">
+          <div class="tabs-nav">
+            <button onclick="scrollTabs(-1)" title="Scroll left">
+              <span class="material-icons-round">chevron_left</span>
+            </button>
+          </div>
+          <div class="tabs-wrap">
+            <div class="tabs" id="tabs"></div>
+          </div>
+          <div class="tabs-nav">
+            <button onclick="scrollTabs(1)" title="Scroll right">
+              <span class="material-icons-round">chevron_right</span>
+            </button>
+          </div>
+        </div>
+        <div class="result-meta-bar" id="resultMetaBar"></div>
+      </div>
+      <div class="tab-panels" id="tabPanels"></div>
+    </div>
+
+    <div class="result-footer" id="resultFooter">
+      <div class="result-actions">
+        <button class="icon-btn has-label" onclick="downloadAs('png', this)" title="Download as PNG">
+          <span class="material-icons-round">download</span>
+          <span class="btn-label">PNG</span>
+        </button>
+        <button class="icon-btn has-label" onclick="downloadAs('jpeg', this)" title="Download as JPEG">
+          <span class="material-icons-round">download</span>
+          <span class="btn-label">JPG</span>
+        </button>
+        <button class="icon-btn has-label" onclick="downloadAs('webp', this)" title="Download as WebP">
+          <span class="material-icons-round">download</span>
+          <span class="btn-label">WebP</span>
+        </button>
+        <button class="icon-btn has-label" onclick="downloadPdf()" title="Download PDF" id="pdfBtn">
+          <span class="material-icons-round">picture_as_pdf</span>
+          <span class="btn-label">PDF</span>
+        </button>
+        <button class="icon-btn has-label" onclick="downloadAll()" title="Download all as ZIP" id="zipBtn">
+          <span class="material-icons-round">folder_zip</span>
+          <span class="btn-label">ZIP</span>
+        </button>
+        <button class="icon-btn" onclick="openInTab()" title="Open in new tab">
+          <span class="material-icons-round">open_in_new</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal">
+      <div class="modal-body">
+        <div class="modal-title" id="modalTitle">Large Capture</div>
+        <div class="modal-msg" id="modalMsg"></div>
+      </div>
+      <label class="modal-suppress">
+        <input type="checkbox" id="modalSuppress">
+        <span>Don't show again this session</span>
+      </label>
+      <div class="modal-actions">
+        <button class="modal-btn" id="modalCancel">Cancel</button>
+        <button class="modal-btn modal-btn--primary" id="modalConfirm">Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // XSS prevention — escape HTML in all user-derived content
+    function esc(str) {
+      const d = document.createElement("div");
+      d.textContent = String(str);
+      return d.innerHTML;
+    }
+
+    async function resetApp() {
+      const proceed = await showModal("Reset", "This will clear all captures and reset the form. Continue?", "reset");
+      if (!proceed) return;
+      window.location.reload();
+    }
+
+    const suppressedModals = new Set(
+      JSON.parse(sessionStorage.getItem("suppressedModals") || "[]")
+    );
+
+    function showModal(title, msg, id = "default") {
+      if (suppressedModals.has(id)) return Promise.resolve(true);
+
+      return new Promise((resolve) => {
+        document.getElementById("modalTitle").textContent = title;
+        document.getElementById("modalMsg").textContent = msg;
+        document.getElementById("modalSuppress").checked = false;
+        const overlay = document.getElementById("modalOverlay");
+        overlay.classList.add("active");
+
+        function cleanup(result) {
+          if (document.getElementById("modalSuppress").checked) {
+            suppressedModals.add(id);
+            sessionStorage.setItem("suppressedModals", JSON.stringify([...suppressedModals]));
+          }
+          overlay.classList.remove("active");
+          document.getElementById("modalCancel").removeEventListener("click", onCancel);
+          document.getElementById("modalConfirm").removeEventListener("click", onConfirm);
+          resolve(result);
+        }
+        function onCancel() { cleanup(false); }
+        function onConfirm() { cleanup(true); }
+
+        document.getElementById("modalCancel").addEventListener("click", onCancel);
+        document.getElementById("modalConfirm").addEventListener("click", onConfirm);
+      });
+    }
+
+    function showAlert(title, msg) {
+      return new Promise((resolve) => {
+        document.getElementById("modalTitle").textContent = title;
+        document.getElementById("modalMsg").textContent = msg;
+        const overlay = document.getElementById("modalOverlay");
+        overlay.classList.add("active");
+        document.getElementById("modalCancel").style.display = "none";
+
+        function onConfirm() {
+          overlay.classList.remove("active");
+          document.getElementById("modalCancel").style.display = "";
+          document.getElementById("modalConfirm").removeEventListener("click", onConfirm);
+          resolve();
+        }
+        document.getElementById("modalConfirm").addEventListener("click", onConfirm);
+      });
+    }
+
+    let captures = [];
+    let lastCaptureUrl = "";
+    let lastCaptureSettings = "";
+    let activeTab = 0;
+
+    let panelExpanded = true;
+
+    function togglePanel() {
+      panelExpanded = !panelExpanded;
+      document.getElementById("panelBody").classList.toggle("collapsed", !panelExpanded);
+      document.getElementById("expandBtn").classList.toggle("rotated", panelExpanded);
+      document.getElementById("urlBar").classList.toggle("expanded", panelExpanded);
+    }
+
+    function collapsePanel() {
+      if (panelExpanded) togglePanel();
+    }
+
+    function expandPanel() {
+      if (!panelExpanded) togglePanel();
+    }
+
+    // Default preset selection (Retina only)
+    const DEFAULT_PRESETS = new Set(["Retina"]);
+
+    function updateUI() {
+      const total = document.querySelectorAll(".preset.active").length;
+      document.getElementById("captureBtn").disabled = total === 0;
+
+      const dc = document.querySelectorAll('[data-cat="devices"] .preset.active').length;
+      const sc = document.querySelectorAll('[data-cat="social"] .preset.active').length;
+      const dEl = document.getElementById("countDevices");
+      const sEl = document.getElementById("countSocial");
+      dEl.textContent = dc;
+      dEl.classList.toggle("visible", dc > 0);
+      sEl.textContent = sc;
+      sEl.classList.toggle("visible", sc > 0);
+
+      // Update action button states
+      const activeGroup = document.querySelector(".preset-group.active");
+      if (activeGroup) {
+        const allInGroup = activeGroup.querySelectorAll(".preset").length;
+        const selectedInGroup = activeGroup.querySelectorAll(".preset.active").length;
+
+        document.getElementById("btnSelectAll").disabled = selectedInGroup === allInGroup;
+        document.getElementById("btnClear").disabled = selectedInGroup === 0;
+      }
+
+      // Reset is disabled when selection matches defaults
+      const currentSelection = new Set(
+        Array.from(document.querySelectorAll(".preset.active")).map(p => p.dataset.name)
+      );
+      const isDefault = currentSelection.size === DEFAULT_PRESETS.size &&
+        [...DEFAULT_PRESETS].every(n => currentSelection.has(n));
+      document.getElementById("btnReset").disabled = isDefault;
+    }
+
+    function togglePreset(el) {
+      el.classList.toggle("active");
+      updateUI();
+    }
+
+    function switchCategory(cat, tabEl) {
+      document.querySelectorAll(".seg-btn").forEach(t => t.classList.remove("active"));
+      tabEl.classList.add("active");
+      document.querySelectorAll(".preset-group").forEach(g =>
+        g.classList.toggle("active", g.dataset.cat === cat)
+      );
+      updateUI();
+    }
+
+    function selectAllPresets() {
+      const activeGroup = document.querySelector(".preset-group.active");
+      if (activeGroup) activeGroup.querySelectorAll(".preset").forEach(p => p.classList.add("active"));
+      updateUI();
+    }
+
+    function visitUrl() {
+      let url = document.getElementById("urlInput").value.trim();
+      if (!url) return;
+      if (!/^https?:\/\//i.test(url)) url = "https://" + url;
+      window.open(url, "_blank");
+    }
+
+    const MAGIC_QUOTES = [
+      "A magician never reveals their source code...",
+      "Abracadabra... rendering pixels...",
+      "The rabbit is loading inside the hat.",
+      "Nothing up my sleeve... just 47 Chrome processes.",
+      "For my next trick, I'll make cookies disappear.",
+      "Please don't look behind the curtain.",
+      "Sawing this webpage in half...",
+      "Is this your card? No? How about this screenshot?",
+      "The hand is quicker than the network request.",
+      "Hocus pocus, DOM-inus focus.",
+      "Now you see the loading bar... soon you won't.",
+      "Pulling screenshots out of thin air since 2026.",
+      "Every great illusion requires patience.",
+      "Watch closely... the pixels are assembling.",
+      "A wizard is never late. Nor is he early.",
+      "Transmuting HTML into pixels...",
+      "The magic word is 'await'.",
+      "Trust the process. And the progress bar.",
+      "Shuffling the viewport deck...",
+      "Making the DOM levitate...",
+      "Waving the CSS wand...",
+      "Catch a screenshot, release a promise.",
+      "Mirror mirror on the wall, capture the finest page of all.",
+      "The prestige: when the screenshot finally appears.",
+      "Patience, young padawan. The pixels are aligning.",
+      "This trick requires a volunteer from the audience.",
+      "Don't blink. You might miss a repaint.",
+      "Conjuring responsive layouts from the ether...",
+      "The page loaded, but the illusion takes longer.",
+      "Turning caffeine into screenshots...",
+      "Loading... the magician is backstage.",
+      "Picking the lock on lazy-loaded images...",
+      "Hold my viewport, I'm going in.",
+      "What happens in headless Chrome stays in headless Chrome.",
+      "Behold: the ancient art of pixel harvesting.",
+      "Reading the page's palm... I see many divs in its future.",
+      "One does not simply screenshot a SPA.",
+      "Current mood: waiting for networkidle.",
+      "Rendering at the speed of broadband...",
+      "This page has more layers than an onion.",
+      "Catching cookies like butterflies...",
+      "Enchanting the viewport matrix...",
+      "Fun fact: this tab can't see you watching it.",
+      "Almost there... the pixels are warming up.",
+      "Whispering sweet nothings to the DOM...",
+      "In a parallel universe, this already loaded.",
+      "The screenshot fairy is working overtime.",
+      "Casting viewport transformation spell...",
+      "Your patience is the real magic here.",
+      "Plot twist: the loading bar was the friends we made along the way.",
+    ];
+
+    const LUCKY_URLS = [
+      "https://apple.com",
+      "https://stripe.com",
+      "https://linear.app",
+      "https://vercel.com",
+      "https://notion.so",
+      "https://figma.com",
+      "https://arc.net",
+      "https://raycast.com",
+      "https://supabase.com",
+      "https://tailwindcss.com",
+      "https://framer.com",
+      "https://resend.com",
+      "https://cal.com",
+      "https://dub.co",
+      "https://ui.shadcn.com",
+      "https://nextjs.org",
+      "https://astro.build",
+      "https://planetscale.com",
+      "https://clerk.com",
+      "https://fly.io",
+    ];
+
+    function feelingLucky() {
+      const current = document.getElementById("urlInput").value;
+      let pick;
+      do {
+        pick = LUCKY_URLS[Math.floor(Math.random() * LUCKY_URLS.length)];
+      } while (pick === current && LUCKY_URLS.length > 1);
+      document.getElementById("urlInput").value = pick;
+    }
+
+    function resetPresets() {
+      document.querySelectorAll(".preset").forEach(p =>
+        p.classList.toggle("active", DEFAULT_PRESETS.has(p.dataset.name))
+      );
+      updateUI();
+    }
+
+    function clearPresets() {
+      const activeGroup = document.querySelector(".preset-group.active");
+      if (activeGroup) activeGroup.querySelectorAll(".preset").forEach(p => p.classList.remove("active"));
+      updateUI();
+    }
+
+    function getSelectedPresets() {
+      return Array.from(document.querySelectorAll(".preset.active")).map(p => ({
+        w: Number(p.dataset.w),
+        h: Number(p.dataset.h),
+        name: p.dataset.name,
+        crop: p.dataset.crop === "true",
+      }));
+    }
+
+    function scrollTabs(dir) {
+      const tabs = document.getElementById("tabs");
+      tabs.scrollBy({ left: dir * 200, behavior: "smooth" });
+    }
+
+    function switchTab(index) {
+      activeTab = index;
+      document.querySelectorAll(".tab").forEach((t, i) => {
+        t.classList.toggle("active", i === index);
+        if (i === index) t.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+      });
+      document.querySelectorAll(".tab-panel").forEach((p, i) => p.classList.toggle("active", i === index));
+      updateMetaBar();
+    }
+
+    function updateMetaBar() {
+      const cap = captures[activeTab];
+      const bar = document.getElementById("resultMetaBar");
+      if (!cap) { bar.innerHTML = ""; return; }
+      bar.innerHTML = Object.entries(cap.meta)
+        .map(([k, v]) => `<span class="meta-chip">${esc(k)}: ${esc(v)}</span>`)
+        .join("");
+    }
+
+    function buildResults() {
+      const tabsEl = document.getElementById("tabs");
+      const panelsEl = document.getElementById("tabPanels");
+      tabsEl.innerHTML = "";
+      panelsEl.innerHTML = "";
+
+      captures.forEach((cap, i) => {
+        const tab = document.createElement("button");
+        tab.className = `tab${i === 0 ? " active" : ""}`;
+        tab.textContent = cap.name;
+        tab.onclick = () => switchTab(i);
+        tabsEl.appendChild(tab);
+
+        const panel = document.createElement("div");
+        panel.className = `tab-panel${i === 0 ? " active" : ""}`;
+        panel.innerHTML = `
+          <div class="panel-bar">
+            <div class="meta">
+              ${Object.entries(cap.meta).map(([k, v]) => `<span class="meta-chip">${esc(k)}: ${esc(v)}</span>`).join("")}
+            </div>
+          </div>
+          <div class="preview"><img src="${cap.image}" alt="${esc(cap.name)}"></div>
+        `;
+        panelsEl.appendChild(panel);
+      });
+
+      activeTab = 0;
+      updateMetaBar();
+      document.getElementById("zipBtn").style.display = captures.length > 1 ? "flex" : "none";
+    }
+
+    function estimateBatchSize(presets) {
+      const scale = parseInt(document.getElementById("scale").value) || 1;
+      const fullPage = document.getElementById("fullPage").checked;
+      const pageFactor = fullPage ? 4 : 1;
+      let totalMB = 0;
+      for (const p of presets) {
+        const pixels = p.w * scale * p.h * scale * pageFactor;
+        totalMB += (pixels * 4) / (1024 * 1024);
+      }
+      return Math.round(totalMB);
+    }
+
+    async function capture() {
+      const allPresets = getSelectedPresets();
+      if (allPresets.length === 0) return;
+
+      let url = document.getElementById("urlInput").value.trim();
+      if (!url) return;
+
+      // Auto-prepend https:// if no protocol specified
+      if (!/^https?:\/\//i.test(url)) {
+        url = "https://" + url;
+        document.getElementById("urlInput").value = url;
+      }
+
+      // Build a settings fingerprint to detect changes
+      const currentSettings = JSON.stringify({
+        maxWidth: document.getElementById("maxWidth").value,
+        format: "png",
+        scale: document.getElementById("scale").value,
+        delay: document.getElementById("delay").value,
+        fullPage: document.getElementById("fullPage").checked,
+        clean: document.getElementById("cleanMode").checked,
+        reveal: document.getElementById("revealMode").checked,
+      });
+
+      // If URL or settings changed, clear cache and recapture everything
+      const settingsChanged = currentSettings !== lastCaptureSettings;
+      const isSameUrl = url === lastCaptureUrl && !settingsChanged;
+      const existingNames = isSameUrl ? new Set(captures.map(c => c.name)) : new Set();
+      const presets = allPresets.filter(p => !existingNames.has(p.name));
+
+      if (presets.length === 0) {
+        await showAlert("Already Captured", "All selected presets are already captured for this URL with these settings.");
+        return;
+      }
+
+      // Clear previous captures if URL or settings changed
+      if (!isSameUrl) captures = [];
+      lastCaptureUrl = url;
+      lastCaptureSettings = currentSettings;
+
+      const estMB = estimateBatchSize(presets);
+      if (presets.length >= 5 || estMB > 200) {
+        const msg = `You're about to capture ${presets.length} screenshots (~${estMB} MB). This will keep all images in your browser's memory and may slow things down on older machines.`;
+        const proceed = await showModal("Heads up", msg, "capture-warn");
+        if (!proceed) return;
+      }
+
+      const skipped = allPresets.length - presets.length;
+
+      const btn = document.getElementById("captureBtn");
+      const progress = document.getElementById("progress");
+      const result = document.getElementById("result");
+      const errorMsg = document.getElementById("errorMsg");
+
+      btn.disabled = true;
+      progress.classList.remove("slide-out");
+      progress.classList.add("slide-in");
+      result.classList.remove("active");
+      document.getElementById("resultFooter").classList.remove("active");
+      errorMsg.classList.remove("active");
+      document.getElementById("progressFill").style.width = "0%";
+      document.getElementById("progressPct").textContent = "0%";
+      document.getElementById("progressStepText").textContent = "Initializing...";
+      document.getElementById("progressEta").textContent = "--";
+      document.getElementById("progressElapsed").textContent = "0.0s";
+      document.getElementById("progressCount").textContent = `0/${presets.length}`;
+      document.getElementById("progressActive").textContent = "0";
+      document.getElementById("progressLog").innerHTML = "";
+      const thumbsEl = document.getElementById("progressThumbs");
+      thumbsEl.innerHTML = "";
+      thumbsEl.classList.remove("has-items");
+      const quoteEl = document.getElementById("progressQuote");
+      quoteEl.classList.remove("visible");
+      quoteEl.textContent = "";
+      let usedQuotes = [];
+
+      // Show random quotes after 3s — estimate reading time per quote
+      function readingTime(text) {
+        const words = text.split(/\s+/).length;
+        return Math.max(6000, words * 500 + 3000);
+      }
+
+      const quoteTimer = setTimeout(() => {
+        function showQuote() {
+          if (usedQuotes.length >= MAGIC_QUOTES.length) usedQuotes = [];
+          const available = MAGIC_QUOTES.filter(q => !usedQuotes.includes(q));
+          const pick = available[Math.floor(Math.random() * available.length)];
+          usedQuotes.push(pick);
+
+          // Fade out current — wait for the slow fade-out to finish
+          quoteEl.classList.remove("visible");
+          quoteEl.classList.add("fade-out");
+
+          setTimeout(() => {
+            quoteEl.textContent = pick;
+            quoteEl.classList.remove("fade-out");
+
+            // Fade in new
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                quoteEl.classList.add("visible");
+              });
+            });
+
+            // Schedule next based on reading time
+            const duration = readingTime(pick);
+            clearTimeout(quoteEl._nextTimer);
+            quoteEl._nextTimer = setTimeout(showQuote, duration);
+          }, 1600);
+        }
+        showQuote();
+      }, 4000);
+
+      const startTime = Date.now();
+      const elapsedTimer = setInterval(() => {
+        document.getElementById("progressElapsed").textContent =
+          ((Date.now() - startTime) / 1000).toFixed(1) + "s";
+      }, 100);
+
+      function addLog(msg) {
+        const log = document.getElementById("progressLog");
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
+        const line = document.createElement("div");
+        line.className = "log-line";
+        line.innerHTML = `<span class="log-time">[${elapsed}s]</span><span class="log-msg">${esc(msg)}</span>`;
+        log.appendChild(line);
+        log.scrollTop = log.scrollHeight;
+      }
+
+      addLog(`Batch capture: ${presets.length} new preset(s)${skipped > 0 ? `, ${skipped} already cached` : ""}`);
+
+      // Shared options for both single and batch endpoints
+      const opts = {
+        fullPage: document.getElementById("fullPage").checked,
+        format: "png",
+        deviceScale: document.getElementById("scale").value,
+        delay: document.getElementById("delay").value,
+        clean: document.getElementById("cleanMode").checked,
+        reveal: document.getElementById("revealMode").checked,
+        maxWidth: document.getElementById("maxWidth").value,
+      };
+
+      // Build SSE URL — single preset uses /api/screenshot, multiple uses /api/batch
+      const isBatch = presets.length > 1;
+      const p0 = presets[0];
+      const params = new URLSearchParams({
+        url,
+        ...opts,
+        ...(isBatch
+          ? { presets: JSON.stringify(presets) }
+          : { width: p0.w, height: p0.h, ...(p0.crop ? { crop: "true" } : {}) }),
+      });
+
+      const es = new EventSource(`/api/${isBatch ? "batch" : "screenshot"}?${params}`);
+
+      /**
+       * ETA estimation:
+       * - Before 15%: show rough estimate based on preset count
+       * - After 15%: linear extrapolation from elapsed time + smoothing
+       */
+      const roughTotalSec = presets.length === 1 ? 15 : presets.length * 10;
+      let lastEta = roughTotalSec;
+
+      function updateProgress(pct, step, current, total, active) {
+        document.getElementById("progressFill").style.width = pct + "%";
+        document.getElementById("progressPct").textContent = pct + "%";
+        document.getElementById("progressStepText").textContent = step;
+        if (total != null) document.getElementById("progressCount").textContent = `${current}/${total}`;
+        if (active != null) {
+          const el = document.getElementById("progressActive");
+          el.textContent = active;
+          el.classList.toggle("idle", active === 0);
+        }
+        addLog(step);
+
+        const elapsed = (Date.now() - startTime) / 1000;
+
+        if (pct >= 100) {
+          document.getElementById("progressEta").textContent = "done";
+        } else if (pct < 15) {
+          // Too early for accurate estimate — use rough preset-based guess
+          const rough = Math.max(1, Math.round(roughTotalSec - elapsed));
+          document.getElementById("progressEta").textContent = `~${rough}s`;
+        } else {
+          // Linear extrapolation with smoothing to prevent jumps
+          const rawEta = Math.max(0, (elapsed / (pct / 100)) - elapsed);
+          lastEta = lastEta * 0.6 + rawEta * 0.4; // smooth sudden jumps
+          const rounded = Math.max(1, Math.round(lastEta));
+          document.getElementById("progressEta").textContent = `~${rounded}s`;
+        }
+      }
+
+      // Shared: finalize after all captures complete
+      function finalize() {
+        es.close();
+        clearInterval(elapsedTimer);
+        clearTimeout(quoteTimer);
+        clearTimeout(quoteEl._nextTimer);
+        quoteEl.classList.remove("visible");
+        quoteEl.classList.remove("fade-out");
+        addLog(`Done in ${((Date.now() - startTime) / 1000).toFixed(1)}s`);
+        buildResults();
+        progress.classList.remove("slide-in");
+        progress.classList.add("slide-out");
+        setTimeout(() => {
+          result.classList.add("active");
+          document.getElementById("resultFooter").classList.add("active");
+          collapsePanel();
+        }, 400);
+        btn.disabled = false;
+      }
+
+      // Shared: handle errors from SSE
+      function handleError(e) {
+        es.close();
+        clearInterval(elapsedTimer);
+        clearTimeout(quoteTimer);
+        clearTimeout(quoteEl._nextTimer);
+        quoteEl.classList.remove("visible");
+        quoteEl.classList.remove("fade-out");
+        try {
+          document.getElementById("errorText").textContent = JSON.parse(e.data).error;
+        } catch {
+          document.getElementById("errorText").textContent = "Connection lost";
+        }
+        errorMsg.classList.add("active");
+        progress.classList.remove("slide-in");
+        progress.classList.add("slide-out");
+        btn.disabled = false;
+      }
+
+      // Wire up SSE events
+      es.addEventListener("progress", (e) => {
+        const { step, pct, current, total, active } = JSON.parse(e.data);
+        updateProgress(pct, step, current, total, active);
+      });
+
+      es.addEventListener("capture", (e) => {
+        const data = JSON.parse(e.data);
+        captures.push(data);
+
+        // Add thumbnail to progress panel
+        const thumbs = document.getElementById("progressThumbs");
+        thumbs.classList.add("has-items");
+        const thumb = document.createElement("div");
+        thumb.className = "progress-thumb";
+        thumb.innerHTML = `<img src="${data.image}"><div class="progress-thumb-label">${esc(data.name)}</div>`;
+        thumbs.appendChild(thumb);
+        requestAnimationFrame(() => requestAnimationFrame(() => thumb.classList.add("visible")));
+        thumbs.scrollLeft = thumbs.scrollWidth;
+        addLog(`Captured: ${data.name} (${data.meta.viewport})`);
+      });
+
+      // Single capture sends "done", batch sends "alldone"
+      es.addEventListener("done", (e) => {
+        const data = JSON.parse(e.data);
+        const p = presets[0];
+        captures.push({ index: 0, name: p.name, image: data.image, meta: data.meta });
+        document.getElementById("progressCount").textContent = "1/1";
+        finalize();
+      });
+
+      es.addEventListener("alldone", () => finalize());
+      es.addEventListener("error", handleError);
+      es.onerror = () => {
+        es.close();
+        clearInterval(elapsedTimer);
+        progress.classList.remove("slide-in");
+        progress.classList.add("slide-out");
+        btn.disabled = false;
+      };
+    }
+
+    function getDownloadName(cap, ext) {
+      const url = document.getElementById("urlInput").value.trim();
+      let site = "capture";
+      try {
+        site = new URL(url).hostname.replace(/^www\./, "").replace(/\..+$/, "");
+      } catch {}
+      const preset = cap.name.toLowerCase().replace(/\s+/g, "-");
+      const ts = Math.floor(Date.now() / 1000);
+      return `${site}-${preset}-${ts}.${ext}`;
+    }
+
+    async function downloadAs(format, btn) {
+      const cap = captures[activeTab];
+      if (!cap) return;
+      const ext = format === "jpeg" ? "jpg" : format;
+      const filename = getDownloadName(cap, ext);
+
+      if (cap.meta.format === format) {
+        const a = document.createElement("a");
+        a.href = cap.image;
+        a.download = filename;
+        a.click();
+        return;
+      }
+
+      btn.classList.add("loading");
+      try {
+        const res = await fetch("/api/convert", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: cap.image, format }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        const a = document.createElement("a");
+        a.href = data.image;
+        a.download = filename;
+        a.click();
+      } catch (err) {
+        document.getElementById("errorText").textContent = err.message;
+        document.getElementById("errorMsg").classList.add("active");
+      } finally {
+        btn.classList.remove("loading");
+      }
+    }
+
+    async function downloadAll() {
+      if (captures.length < 2) return;
+      const btn = document.getElementById("zipBtn");
+      btn.classList.add("loading");
+      try {
+        const zip = new JSZip();
+        const ext = captures[0]?.meta.format || "png";
+
+        let site = "capture";
+        try {
+          site = new URL(document.getElementById("urlInput").value.trim()).hostname.replace(/^www\./, "").replace(/\..+$/, "");
+        } catch {}
+
+        captures.forEach((cap) => {
+          const base64 = cap.image.split(",")[1];
+          const preset = cap.name.toLowerCase().replace(/\s+/g, "-");
+          zip.file(`${site}-${preset}.${ext}`, base64, { base64: true });
+        });
+
+        const blob = await zip.generateAsync({ type: "blob" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `${site}-all-${Math.floor(Date.now() / 1000)}.zip`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      } finally {
+        btn.classList.remove("loading");
+      }
+    }
+
+    async function downloadPdf() {
+      const cap = captures[activeTab];
+      if (!cap) return;
+      const pdfBtn = document.getElementById("pdfBtn");
+      pdfBtn.classList.add("loading");
+
+      try {
+        const res = await fetch("/api/pdf", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: document.getElementById("urlInput").value.trim(),
+            width: parseInt(cap.meta.viewport.split("x")[0]),
+            height: parseInt(cap.meta.viewport.split("x")[1]),
+            deviceScale: cap.meta.scale,
+            delay: parseInt(document.getElementById("delay").value),
+            clean: document.getElementById("cleanMode").checked,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "PDF failed");
+
+        const a = document.createElement("a");
+        a.href = data.pdf;
+        a.download = getDownloadName(cap, "pdf");
+        a.click();
+      } catch (err) {
+        document.getElementById("errorText").textContent = err.message;
+        document.getElementById("errorMsg").classList.add("active");
+      } finally {
+        pdfBtn.classList.remove("loading");
+      }
+    }
+
+    function openInTab() {
+      const cap = captures[activeTab];
+      if (!cap) return;
+      const win = window.open();
+      const img = win.document.createElement("img");
+      img.src = cap.image;
+      img.style.maxWidth = "100%";
+      win.document.body.appendChild(img);
+    }
+
+    document.getElementById("urlInput").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") capture();
+    });
+
+    document.getElementById("urlInput").addEventListener("focus", function handler() {
+      if (this.value === "https://playwright.dev") {
+        this.value = "";
+        this.removeEventListener("focus", handler);
+      }
+    });
+
+    updateUI();
+  </script>
+</body>
+</html>
