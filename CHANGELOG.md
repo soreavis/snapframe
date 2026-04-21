@@ -10,6 +10,7 @@ This project follows [Keep a Changelog](https://keepachangelog.com/) and [Semant
 - Headless CLI (`snapframe`) for scripting and agentic tool usage — single capture, multi-viewport batch, PDF, and `serve` subcommand.
 - Built-in preset names for the CLI (`yt-thumb`, `linkedin-post`, `desktop`, `mobile`, etc.) matching the web UI's social presets.
 - `lib/capture.js` — transport-agnostic core shared by the HTTP server and CLI.
+- `--strip` flag (CLI) / `strip=true` query param (server) — aggressive chrome removal for clean content screenshots. Hides page `<header>` and `<nav>`, AccessiBe / UserWay / EqualWeb accessibility widgets, Intercom / Drift / Crisp / Tawk / HubSpot / Tidio / Zendesk / LiveChat / Facebook Messenger chat widgets, and floating back-to-top / CTA buttons. Composes with `--clean`.
 
 ### Changed
 - `server.js` refactored into a thin Express/SSE wrapper around `lib/capture.js`. API surface and frontend behavior are unchanged.
