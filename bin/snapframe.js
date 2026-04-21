@@ -72,6 +72,7 @@ OPTIONS
   -p, --preset <name>     Use a built-in preset (see \`snapframe presets\`)
       --full-page         Capture the full scrollable page
       --clean             Auto-dismiss cookie banners / hide overlays
+      --strip             Aggressive hide: page header/nav, a11y widgets, chat bubbles, floating CTAs
       --reveal            Force-show scroll-triggered hidden elements
       --crop              Crop to exact viewport (for social presets)
       --max-width <px>    Constrain body max-width during capture
@@ -113,6 +114,7 @@ function parseArgs(argv) {
     preset: null,
     fullPage: false,
     clean: false,
+    strip: false,
     reveal: false,
     crop: false,
     maxWidth: 0,
@@ -139,6 +141,7 @@ function parseArgs(argv) {
       case "-p": case "--preset":       args.preset = next(); break;
       case "--full-page": case "--fullpage": args.fullPage = true; break;
       case "--clean":                   args.clean = true; break;
+      case "--strip":                   args.strip = true; break;
       case "--reveal":                  args.reveal = true; break;
       case "--crop":                    args.crop = true; break;
       case "--max-width":               args.maxWidth = Number(next()); break;
@@ -225,6 +228,7 @@ async function cmdSingle(url, args) {
     maxWidth: args.maxWidth,
     fullPage: args.fullPage,
     clean: args.clean,
+    strip: args.strip,
     reveal: args.reveal,
     crop,
     format: args.format,
@@ -289,6 +293,7 @@ async function cmdBatch(url, args) {
         maxWidth: args.maxWidth,
         fullPage: args.fullPage,
         clean: args.clean,
+        strip: args.strip,
         reveal: args.reveal,
         format: args.format,
       },
@@ -330,6 +335,7 @@ async function cmdPdf(url, args) {
         scale: args.scale || 1,
         delay: args.delay,
         clean: args.clean,
+        strip: args.strip,
       },
       ({ step, pct }) => log(`[${String(pct).padStart(3)}%] ${step}`, args),
     );

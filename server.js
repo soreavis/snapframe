@@ -89,6 +89,7 @@ app.get("/api/screenshot", captureLimit, async (req, res) => {
         maxWidth: q.maxWidth,
         fullPage: q.fullPage,
         clean: q.clean,
+        strip: q.strip,
         reveal: q.reveal,
         crop: q.crop,
         format: q.format,
@@ -142,6 +143,7 @@ app.get("/api/batch", captureLimit, async (req, res) => {
         maxWidth: q.maxWidth,
         fullPage: q.fullPage,
         clean: q.clean,
+        strip: q.strip,
         reveal: q.reveal,
         format: q.format,
       },
@@ -194,7 +196,7 @@ app.post("/api/convert", convertLimit, async (req, res) => {
 });
 
 app.post("/api/pdf", captureLimit, async (req, res) => {
-  const { url, width, height, deviceScale, delay, clean } = req.body;
+  const { url, width, height, deviceScale, delay, clean, strip } = req.body;
 
   try {
     const result = await capturePdf({
@@ -204,6 +206,7 @@ app.post("/api/pdf", captureLimit, async (req, res) => {
       scale: deviceScale,
       delay,
       clean,
+      strip,
     });
 
     res.json({

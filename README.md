@@ -62,6 +62,9 @@ snapframe https://example.com -p yt-thumb -o thumb.jpg -f jpeg
 # Multi-viewport batch
 snapframe https://example.com --batch desktop,mobile,yt-thumb --output-dir ./shots
 
+# Full content capture — kill cookie banners, headers, chat widgets, a11y widgets
+snapframe https://example.com --full-page --clean --strip -o clean-content.png
+
 # Full-page PDF
 snapframe https://example.com --pdf -o page.pdf
 
