@@ -25,6 +25,7 @@ Stop resizing your browser manually. Paste a URL, pick your viewports, and get p
 - **Cookie cleanup** — auto-dismiss consent banners and overlays
 - **Animation reveal** — force-show scroll-triggered hidden elements
 - **Live preview** — tabbed results with sticky toolbar
+- **Headless CLI** — scriptable `snapframe` command for CI and agentic tools
 - **Runs locally** — your URLs never leave your machine
 
 ## Quick Start
@@ -37,11 +38,12 @@ cd snapframe
 # 2. Install
 npm install && npx playwright install chromium
 
-# 3. Run
-npm start
-```
+# 3a. Run the web UI
+npm start                     # open http://localhost:3005
 
-Open `http://localhost:3005` and start capturing.
+# 3b. …or install the CLI globally
+npm link                      # then: snapframe https://example.com -o shot.png
+```
 
 ## CLI Usage
 
@@ -82,18 +84,20 @@ Run `snapframe --help` for the full flag list.
 
 ## Social Presets
 
-| Preset | Viewport | Use case |
-|--------|----------|----------|
-| YT Banner | 2560 x 1440 | YouTube channel art |
-| YT Thumb | 1280 x 720 | YouTube thumbnail |
-| LinkedIn Post | 1200 x 627 | LinkedIn feed image |
-| LinkedIn Cover | 1584 x 396 | LinkedIn profile banner |
-| X Post | 1600 x 900 | Twitter/X card image |
-| X Header | 1500 x 500 | Twitter/X profile banner |
-| FB Cover | 820 x 312 | Facebook cover photo |
-| FB Post | 1200 x 630 | Facebook feed image |
-| IG Post | 1080 x 1080 | Instagram square post |
-| IG Story | 1080 x 1920 | Instagram story |
+| Preset | CLI name | Viewport | Use case |
+|--------|----------|----------|----------|
+| YT Banner | `yt-banner` | 2560 x 1440 | YouTube channel art |
+| YT Thumb | `yt-thumb` | 1280 x 720 | YouTube thumbnail |
+| LinkedIn Post | `linkedin-post` | 1200 x 627 | LinkedIn feed image |
+| LinkedIn Cover | `linkedin-cover` | 1584 x 396 | LinkedIn profile banner |
+| X Post | `x-post` | 1600 x 900 | Twitter/X card image |
+| X Header | `x-header` | 1500 x 500 | Twitter/X profile banner |
+| FB Cover | `fb-cover` | 820 x 312 | Facebook cover photo |
+| FB Post | `fb-post` | 1200 x 630 | Facebook feed image |
+| IG Post | `ig-post` | 1080 x 1080 | Instagram square post |
+| IG Story | `ig-story` | 1080 x 1920 | Instagram story |
+
+Device presets also available from the CLI: `retina`, `desktop`, `laptop`, `tablet`, `tablet-portrait`, `mobile`, `mobile-small`. Run `snapframe presets` to list all.
 
 ## Tech Stack
 
@@ -103,6 +107,8 @@ Run `snapframe --help` for the full flag list.
 | Sharp | Image conversion (WebP, JPEG) |
 | Express | Local web server |
 | Vanilla JS | Frontend — no frameworks |
+
+All capture logic lives in `lib/capture.js`. `server.js` (web UI) and `bin/snapframe.js` (CLI) are thin wrappers — see [CONTRIBUTING.md](CONTRIBUTING.md) for architecture notes.
 
 ## Contributing
 

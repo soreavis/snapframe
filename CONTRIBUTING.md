@@ -9,10 +9,15 @@ git clone https://github.com/soreavis/snapframe.git
 cd snapframe
 npm install
 npx playwright install chromium
-npm start
 ```
 
-The app runs at `http://localhost:3005` by default.
+Then pick one:
+
+```bash
+npm start              # web UI at http://localhost:3005
+npm run cli -- --help  # headless CLI, no server needed
+npm link               # installs `snapframe` globally so you can run it from anywhere
+```
 
 ## Submitting a PR
 
