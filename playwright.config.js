@@ -6,11 +6,11 @@ module.exports = defineConfig({
   timeout: 60_000,
   retries: 0,
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: "http://localhost:3005",
   },
   webServer: {
     command: "node server.js",
-    port: 3000,
+    port: 3005,
     reuseExistingServer: true,
     timeout: 10_000,
   },

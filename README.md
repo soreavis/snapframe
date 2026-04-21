@@ -41,7 +41,44 @@ npm install && npx playwright install chromium
 npm start
 ```
 
-Open `http://localhost:3000` and start capturing.
+Open `http://localhost:3005` and start capturing.
+
+## CLI Usage
+
+`.snapframe` also ships as a headless CLI — perfect for scripts, CI, and agentic tools (Claude Code, etc.) that need a screenshot on demand without opening a browser.
+
+```bash
+# From a cloned repo
+npm link                      # installs `snapframe` globally
+
+# Single screenshot
+snapframe https://example.com -o shot.png
+
+# Use a social preset
+snapframe https://example.com -p yt-thumb -o thumb.jpg -f jpeg
+
+# Multi-viewport batch
+snapframe https://example.com --batch desktop,mobile,yt-thumb --output-dir ./shots
+
+# Full-page PDF
+snapframe https://example.com --pdf -o page.pdf
+
+# List built-in presets
+snapframe presets
+
+# Or run the web UI from the CLI
+snapframe serve
+```
+
+Pipe binary output when no `-o` is given:
+
+```bash
+snapframe https://example.com --full-page --clean > shot.png
+```
+
+Exit codes: `0` success, `1` bad arguments, `2` URL rejected (invalid or blocked network), `3` capture failed.
+
+Run `snapframe --help` for the full flag list.
 
 ## Social Presets
 

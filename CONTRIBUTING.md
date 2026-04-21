@@ -12,7 +12,7 @@ npx playwright install chromium
 npm start
 ```
 
-The app runs at `http://localhost:3000` by default.
+The app runs at `http://localhost:3005` by default.
 
 ## Submitting a PR
 
@@ -20,6 +20,24 @@ The app runs at `http://localhost:3000` by default.
 2. Make your changes and test them locally.
 3. Keep commits small and use conventional commit messages (`feat:`, `fix:`, `docs:`, etc.).
 4. Open a pull request with a clear description of what changed and why.
+
+## Architecture
+
+`.snapframe` has **one source of truth** and **two frontends**:
+
+```
+lib/capture.js      ← all Playwright + Sharp + validation logic lives here
+├─ server.js        ← thin Express/SSE wrapper (web UI)
+└─ bin/snapframe.js ← thin argv wrapper (CLI)
+```
+
+When adding a feature:
+
+- **Behavior change** (new capture option, validation rule, consent selector, etc.) → edit `lib/capture.js`. Both frontends pick it up automatically.
+- **Web UI change** → edit `public/index.html` and the route in `server.js` that feeds it.
+- **CLI change** → edit `bin/snapframe.js` — flag parsing, file I/O, exit codes.
+
+**Do not** put Playwright or Sharp calls in `server.js` or `bin/snapframe.js`. If you catch yourself writing one, it belongs in the library.
 
 ## Code Style
 

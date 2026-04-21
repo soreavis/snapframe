@@ -1,7 +1,7 @@
 // @ts-check
 const { test, expect } = require("@playwright/test");
 
-const BASE = "http://localhost:3000";
+const BASE = "http://localhost:3005";
 
 // --- Server health ---
 

@@ -6,6 +6,15 @@ This project follows [Keep a Changelog](https://keepachangelog.com/) and [Semant
 
 ## [Unreleased]
 
+### Added
+- Headless CLI (`snapframe`) for scripting and agentic tool usage — single capture, multi-viewport batch, PDF, and `serve` subcommand.
+- Built-in preset names for the CLI (`yt-thumb`, `linkedin-post`, `desktop`, `mobile`, etc.) matching the web UI's social presets.
+- `lib/capture.js` — transport-agnostic core shared by the HTTP server and CLI.
+
+### Changed
+- `server.js` refactored into a thin Express/SSE wrapper around `lib/capture.js`. API surface and frontend behavior are unchanged.
+- Port prompt on startup is skipped when stdin is non-interactive (CI / piped), defaulting to `3005`.
+
 ## [1.0.0] - 2026-03-15
 
 ### Added

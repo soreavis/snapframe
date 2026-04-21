@@ -2,9 +2,21 @@
   "name": "snapframe",
   "version": "1.0.0",
   "description": "Capture any webpage in multiple viewports with one click. Built with Playwright.",
-  "main": "server.js",
+  "main": "lib/capture.js",
+  "bin": {
+    "snapframe": "bin/snapframe.js"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "public",
+    "server.js",
+    "LICENSE",
+    "README.md"
+  ],
   "scripts": {
     "start": "node server.js",
+    "cli": "node bin/snapframe.js",
     "test": "npx playwright test"
   },
   "keywords": [
