@@ -22,7 +22,8 @@ Stop resizing your browser manually. Paste a URL, pick your viewports, and get p
 - **PNG, JPEG, WebP** — download in any format, convert on the fly
 - **PDF export** — full-page pageless PDF with a single click
 - **Batch mode** — capture multiple viewports at once
-- **Cookie cleanup** — auto-dismiss consent banners and overlays
+- **Cookie cleanup** — auto-dismiss consent banners
+- **Chrome strip** — remove page header/nav, accessibility widgets, chat bubbles, floating CTAs for content-only captures
 - **Animation reveal** — force-show scroll-triggered hidden elements
 - **Live preview** — tabbed results with sticky toolbar
 - **Headless CLI** — scriptable `snapframe` command for CI and agentic tools
