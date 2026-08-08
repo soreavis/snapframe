@@ -66,22 +66,23 @@ USAGE
 OPTIONS
   -o, --output <file>     Write to file (default: stdout for single, ./snapframe-<name>.<ext> for batch)
   -w, --width <px>        Viewport width (default: 1280)
-  -h, --height <px>       Viewport height (default: 720)
+      --height <px>       Viewport height (default: 720)
   -s, --scale <n>         Device scale factor 1-3 (default: 1)
   -f, --format <fmt>      png | jpeg | webp (default: png)
   -p, --preset <name>     Use a built-in preset (see \`snapframe presets\`)
-      --full-page         Capture the full scrollable page
+      --full-page         Capture the full scrollable page (alias: --fullpage)
       --clean             Auto-dismiss cookie banners / hide overlays
       --strip             Aggressive hide: page header/nav, a11y widgets, chat bubbles, floating CTAs
       --reveal            Force-show scroll-triggered hidden elements
       --crop              Crop to exact viewport (for social presets)
       --max-width <px>    Constrain body max-width during capture
       --delay <ms>        Wait before capture (0-10000, default: 0)
+      --output-dir <dir>  Directory for --batch output (default: ./)
       --batch <list>      Comma-separated preset names for batch capture
       --pdf               Output pageless PDF instead of image
       --quiet             Suppress progress output
       --json              Output JSON metadata to stdout (single mode)
-      --help              Show this help
+  -h, --help              Show this help
 
 EXAMPLES
   snapframe https://example.com -o shot.png
@@ -135,7 +136,7 @@ function parseArgs(argv) {
       case "-o": case "--output":       args.output = next(); break;
       case "--output-dir":              args.outputDir = next(); break;
       case "-w": case "--width":        args.width = Number(next()); break;
-      case "-h": case "--height":       args.height = Number(next()); break;
+      case "--height":                  args.height = Number(next()); break;
       case "-s": case "--scale":        args.scale = Number(next()); break;
       case "-f": case "--format":       args.format = next(); break;
       case "-p": case "--preset":       args.preset = next(); break;
@@ -151,7 +152,7 @@ function parseArgs(argv) {
       case "--quiet": case "-q":        args.quiet = true; break;
       case "--json":                    args.json = true; break;
       case "--port":                    args.port = Number(next()); break;
-      case "--help": case "-?":         args.help = true; break;
+      case "--help": case "-h": case "-?": args.help = true; break;
       default:
         if (a.startsWith("-")) {
           fail(`Unknown flag: ${a}`);

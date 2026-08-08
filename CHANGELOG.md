@@ -6,6 +6,14 @@ This project follows [Keep a Changelog](https://keepachangelog.com/) and [Semant
 
 ## [Unreleased]
 
+### Changed
+
+- `-h` now shows help instead of setting `--height`. It previously consumed the next argument, so a bare `snapframe -h` set the height to `Number(undefined)` — `NaN` — and carried on. `--height` is unchanged as the long form; scripts passing `-h 900` must switch to `--height 900`.
+
+### Fixed
+
+- Help text lists `--output-dir` and the `--fullpage` alias, which the parser accepted but never documented. The README points at `--help` as the full flag list, so the omission made that claim false.
+
 ### Added
 - Headless CLI (`snapframe`) for scripting and agentic tool usage — single capture, multi-viewport batch, PDF, and `serve` subcommand.
 - Built-in preset names for the CLI (`yt-thumb`, `linkedin-post`, `desktop`, `mobile`, etc.) matching the web UI's social presets.
@@ -28,3 +36,6 @@ This project follows [Keep a Changelog](https://keepachangelog.com/) and [Semant
 - Animation reveal — force-show scroll-triggered hidden elements
 - Live preview — tabbed results with sticky toolbar
 - Local-only — your URLs never leave your machine
+
+[Unreleased]: https://github.com/soreavis/snapframe/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/soreavis/snapframe/releases/tag/v1.0.0
