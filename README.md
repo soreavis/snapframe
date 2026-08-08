@@ -79,6 +79,7 @@ snapframe serve
 Pipe binary output when no `-o` is given:
 
 ```bash
+# With no -o, the PNG goes to stdout — redirect it yourself
 snapframe https://example.com --full-page --clean > shot.png
 ```
 

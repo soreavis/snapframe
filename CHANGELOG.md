@@ -8,6 +8,8 @@ This project follows [Keep a Changelog](https://keepachangelog.com/) and [Semant
 
 ### Changed
 
+- **Code examples follow one shape repo-wide.** Each block now opens with a one-line comment, the commands sit directly under it, and a blank line separates each group. Trailing comments past the command were the first thing a narrow viewport cut off, so the reason for a flag was lost while the flag survived.
+
 - `-h` now shows help instead of setting `--height`. It previously consumed the next argument, so a bare `snapframe -h` set the height to `Number(undefined)` — `NaN` — and carried on. `--height` is unchanged as the long form; scripts passing `-h 900` must switch to `--height 900`.
 
 ### Fixed

@@ -5,6 +5,7 @@ Thanks for wanting to help! Here's everything you need to get started.
 ## Running Locally
 
 ```bash
+# Clone and install — Chromium is a separate download Playwright manages
 git clone https://github.com/soreavis/snapframe.git
 cd snapframe
 npm install
@@ -14,9 +15,14 @@ npx playwright install chromium
 Then pick one:
 
 ```bash
-npm start              # web UI at http://localhost:3005
-npm run cli -- --help  # headless CLI, no server needed
-npm link               # installs `snapframe` globally so you can run it from anywhere
+# Web UI at http://localhost:3005
+npm start
+
+# Headless CLI, no server needed
+npm run cli -- --help
+
+# Install `snapframe` globally so you can run it from anywhere
+npm link
 ```
 
 ## Submitting a PR
