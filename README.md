@@ -1,4 +1,4 @@
-# .snapframe
+# Snapframe
 
 [![CI](https://github.com/soreavis/snapframe/actions/workflows/ci.yml/badge.svg)](https://github.com/soreavis/snapframe/actions/workflows/ci.yml)
 ![Version](https://img.shields.io/badge/version-1.0.0-blue)
