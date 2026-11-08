@@ -14,6 +14,8 @@ This project follows [Keep a Changelog](https://keepachangelog.com/) and [Semant
 
 ### Fixed
 
+- `npx playwright install chromium` no longer hangs on Node 26, the current LTS. Playwright 1.58.2's unzip stalls after the download on Node 26; 1.61.1 has the fix and also supports Ubuntu 26.04.
+
 - Help text lists `--output-dir` and the `--fullpage` alias, which the parser accepted but never documented. The README points at `--help` as the full flag list, so the omission made that claim false.
 
 ### Added
